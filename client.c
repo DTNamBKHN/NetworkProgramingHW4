@@ -41,6 +41,7 @@ int main(void)
 
 	while(1)
 	{
+		memset(message,'\0', BUFLEN);
 		printf("Enter input: ");
 		fgets(message, 512, stdin);
 		message[strlen(message) - 1] = '\0';

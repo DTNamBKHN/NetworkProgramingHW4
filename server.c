@@ -42,6 +42,7 @@ void alterDataOfFile(singleList list);
 void blockAccount(singleList list,char username[512]);
 int checkBlocked(singleList list, char username[512]);//if blocked, return 1
 int checkCorrectPassword(singleList list, char username[512], char pass[512]);
+int changePass(singleList accountList, char username[BUFLEN], char pass[BUFLEN], char new_pass[BUFLEN]);
 int strcicmp(char const *a, char const *b);
 int split_number_and_string(char *input, char *number,char *string);
 //Implement function of linked list
@@ -162,7 +163,7 @@ int searchAccount(singleList list, char username[512]){
     // else return 0
     while (list.cur != NULL)
     {
-        if (strcmp(list.cur->element.user_name, username) == 0)
+        if (strcicmp(list.cur->element.user_name, username) == 0)
             return 1;
         list.cur = list.cur->next;
     }
@@ -192,7 +193,7 @@ void alterDataOfFile(singleList list){
 void blockAccount(singleList list,char username[512]){
 	list.cur = list.root;
 	while(list.cur != NULL){
-		if (strcmp(list.cur->element.user_name, username) == 0){
+		if (strcicmp(list.cur->element.user_name, username) == 0){
 			list.cur->element.status = 0;
 			return;
 		}
@@ -202,7 +203,7 @@ void blockAccount(singleList list,char username[512]){
 int checkBlocked(singleList list, char username[512]){
     list.cur = list.root;
 	while(list.cur != NULL){
-		if (strcmp(list.cur->element.user_name, username) == 0){
+		if (strcicmp(list.cur->element.user_name, username) == 0){
 			if(list.cur->element.status == 0){
 				return 1;
 			}
@@ -216,10 +217,21 @@ int checkBlocked(singleList list, char username[512]){
 int checkCorrectPassword(singleList list, char username[512], char pass[512]){
     list.cur = list.root;
 	while(list.cur != NULL){
-		if ((strcmp(list.cur->element.user_name, username) == 0) && (strcicmp(list.cur->element.password, pass) == 0)){
+		if ((strcicmp(list.cur->element.user_name, username) == 0) && (strcicmp(list.cur->element.password, pass) == 0)){
 			return 1;
 		}
 		list.cur = list.cur->next;
+	}
+	return 0;
+}
+int changePass(singleList accountList, char username[BUFLEN], char pass[BUFLEN], char new_pass[BUFLEN]){
+	accountList.cur = accountList.root;
+	while(accountList.cur != NULL){
+		if ((strcicmp(accountList.cur->element.user_name, username) == 0) && (strcicmp(accountList.cur->element.password, pass) == 0)){
+            strcpy(accountList.cur->element.password, new_pass);
+            return 1;
+		}
+		accountList.cur = accountList.cur->next;
 	}
 	return 0;
 }
@@ -241,7 +253,8 @@ int split_number_and_string(char *input, char *number,char *string){
     	    number[x] = input[i];
     	   	x++;
    		}
-   		else if ((input[i] >= 'a' && input[i] <= 'z')||(input[i] == ' ')){
+   		else if ((input[i] >= 'a' && input[i] <= 'z')||(input[i] >= 'A' && input[i] <= 'Z')
+		   ||(input[i] == ' ')){
    			string[y] = input[i];
    			y++;
    		}
@@ -336,11 +349,13 @@ int main(void)
 						printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 						printf("Data: %s\n" , new_pass);
 						if(strcmp(new_pass, "bye") == 0){
-							strcpy(buf, "Goodbye hust");
+							strcpy(buf, "Goodbye ");
+							strcat(buf, username);
 							buf[strlen(buf)] = '\0';
 							if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 								die("sendto()");
 							}
+							break;
 						}
 						if(split_number_and_string(new_pass, number, string)){
 							strcpy(buf, number);
@@ -349,6 +364,8 @@ int main(void)
 							if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 								die("sendto()");
 							}
+							changePass(list, username, pass, new_pass);
+							alterDataOfFile(list);
 						}
 						else{
 							strcpy(buf, "Error");
