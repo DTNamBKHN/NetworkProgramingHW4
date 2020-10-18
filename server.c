@@ -7,11 +7,11 @@
 #include<arpa/inet.h>
 #include<sys/socket.h>
 
-#define BUFLEN 20	//Max length of buffer
+#define BUFLEN 512	//Max length of buffer
 #define PORT 8888	//The port on which to listen for incoming data
 typedef struct {
-    char user_name[50];
-    char password[20];
+    char user_name[512];
+    char password[512];
     int status;
 } elementtype;
 typedef struct node node;
@@ -37,11 +37,12 @@ void printSingleList(singleList list);
 //Declare function
 int strcicmp(char const *a, char const *b);
 void readDataFromFile(singleList *list);
-int searchAccount(singleList list, char username[20]);
+int searchAccount(singleList list, char username[512]);
 void alterDataOfFile(singleList list);
-void blockAccount(singleList list,char username[20]);
-int checkBlocked(singleList list, char username[20]);//if blocked, return 1
-int checkCorrectPassword(singleList list, char username[20], char pass[20]);
+void blockAccount(singleList list,char username[512]);
+int checkBlocked(singleList list, char username[512]);//if blocked, return 1
+int checkCorrectPassword(singleList list, char username[512], char pass[512]);
+int strcicmp(char const *a, char const *b);
 //Implement function of linked list
 void createSingleList(singleList *list)
 {
@@ -154,7 +155,7 @@ void readDataFromFile(singleList *list){
     }
     fclose(fp);
 }
-int searchAccount(singleList list, char username[20]){
+int searchAccount(singleList list, char username[512]){
     list.cur = list.root;
     // if existed , return 1
     // else return 0
@@ -168,7 +169,7 @@ int searchAccount(singleList list, char username[20]){
 }
 void alterDataOfFile(singleList list){
 	FILE *fp;
-    fp = fopen("account.txt","w");
+    fp = fopen("nguoidung.txt","w");
     if (fp == NULL){
         printf("No file input\n");
         return;
@@ -187,7 +188,7 @@ void alterDataOfFile(singleList list){
     fclose(fp);
     return;
 }
-void blockAccount(singleList list,char username[20]){
+void blockAccount(singleList list,char username[512]){
 	list.cur = list.root;
 	while(list.cur != NULL){
 		if (strcmp(list.cur->element.user_name, username) == 0){
@@ -197,7 +198,7 @@ void blockAccount(singleList list,char username[20]){
 		list.cur = list.cur->next;
 	}
 }
-int checkBlocked(singleList list, char username[20]){
+int checkBlocked(singleList list, char username[512]){
     list.cur = list.root;
 	while(list.cur != NULL){
 		if (strcmp(list.cur->element.user_name, username) == 0){
@@ -211,10 +212,10 @@ int checkBlocked(singleList list, char username[20]){
 		list.cur = list.cur->next;
 	}
 }
-int checkCorrectPassword(singleList list, char username[20], char pass[20]){
+int checkCorrectPassword(singleList list, char username[512], char pass[512]){
     list.cur = list.root;
 	while(list.cur != NULL){
-		if ((strcicmp(list.cur->element.user_name, username) == 0) && (strcmp(list.cur->element.password, pass) == 0)){
+		if ((strcmp(list.cur->element.user_name, username) == 0) && (strcicmp(list.cur->element.password, pass) == 0)){
 			return 1;
 		}
 		list.cur = list.cur->next;
@@ -238,7 +239,7 @@ int main(void)
 	struct sockaddr_in si_me, si_other;
 	
 	int s, i, slen = sizeof(si_other) , recv_len;
-	char username[20], pass[20];
+	char username[BUFLEN], pass[BUFLEN], new_pass[BUFLEN], buf[BUFLEN];
 	
 	//create a UDP socket
 	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -262,77 +263,92 @@ int main(void)
 	//keep listening for data
 	while(1)
 	{
-		//printf("Waiting for data...");
-		//fflush(stdout);
+		printf("Waiting for data...");
+		fflush(stdout);
 		
 		//try to receive username, this is a blocking call
+		memset(username,'\0', BUFLEN);
 		if ((recv_len = recvfrom(s, username, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
 		{
 			die("recvfrom()");
 		}
-		
-		//print details of the client/peer and the data received
-		//printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-		//printf("Data: %s\n" , buf);
+		if (strcmp(username, "") == 0){
+			printf("Closing...");
+			close(s);
+			return 0;
+		}
+		printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+		printf("Data: %s\n" , username);
 		if (searchAccount(list, username)){//check if account exist ?
-			if(sendto(s, "Insert password\n", recv_len, 0, (struct sockaddr*) &si_other, slen) == -1){
+			strcpy(buf, "Insert password\n");
+			buf[strlen(buf) - 1] = '\0';
+			if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 				die("sendto()");
 			}
 			int wrong_pass_count = 0;
 			while (1){
+				memset(pass,'\0', BUFLEN);
 				if ((recv_len = recvfrom(s, pass, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
 				{
 					die("recvfrom()");
 				}
+				printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+				printf("Data: %s\n" , pass);
 				if(checkCorrectPassword(list, username, pass)){//check if pass is correct? 
 					if(checkBlocked(list, username) != 1){//check if account is blocked?
-						if(sendto(s, "OK\n", recv_len, 0, (struct sockaddr*) &si_other, slen) == -1){
+						strcpy(buf, "OK\n");
+						buf[strlen(buf) - 1] = '\0';
+						if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
+							die("sendto()");
+						}
+						strcpy(buf, "Enter new password or 'bye' to sign out\n");
+						buf[strlen(buf) - 1] = '\0';
+						if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 							die("sendto()");
 						}
 						break;
 					}
 					else{
-						if(sendto(s, "Account not ready\n", recv_len, 0, (struct sockaddr*) &si_other, slen) == -1){
+						strcpy(buf, "Account not ready\n");
+						buf[strlen(buf) - 1] = '\0';
+						if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 							die("sendto()");
 						}
-						close(s);
-						return 0;
+						break;
 					}
 				}
 				else{
 					if (wrong_pass_count == 3){
 						break;
 					}
-					if(sendto(s, "Not OK\n", recv_len, 0, (struct sockaddr*) &si_other, slen) == -1){
+					strcpy(buf, "Not OK\n");
+					buf[strlen(buf) - 1] = '\0';
+					if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 						die("sendto()");
 					}
 					wrong_pass_count++;
 				}
 			}
 			if (wrong_pass_count == 3){
-				if(sendto(s, "Account is blocked\n", recv_len, 0, (struct sockaddr*) &si_other, slen) == -1){
+				strcpy(buf, "Account is blocked\n");
+				buf[strlen(buf) - 1] = '\0';
+				if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 					die("sendto()");
 				}
 				blockAccount(list, username);
 				alterDataOfFile(list);
-				close(s);
-				return 0;
+				continue;
 			}
 		}
 		else{
-            if(sendto(s, "Cannot find account\n", recv_len, 0, (struct sockaddr*) &si_other, slen) == -1){
+			strcpy(buf, "Cannot find account\n");
+			buf[strlen(buf) - 1] = '\0';
+            if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 				die("sendto()");
 			}
-			close(s);
-			return 0;
+			continue;
         }
-		//now reply the client with the same data
-		//if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1)
-		//{
-		//	die("sendto()");
-		//}
 	}
 	close(s);
 	return 0;
-	
 }

@@ -8,7 +8,7 @@
 #include<sys/socket.h>
 
 #define SERVER "127.0.0.1"
-#define BUFLEN 20	//Max length of buffer
+#define BUFLEN 512	//Max length of buffer
 #define PORT 8888	//The port on which to send data
 
 void die(char *s)
@@ -41,8 +41,9 @@ int main(void)
 
 	while(1)
 	{
-		gets(message);
-		
+		printf("Enter input: ");
+		fgets(message, 512, stdin);
+		message[strlen(message) - 1] = '\0';
 		//send the message
 		if (sendto(s, message, strlen(message) , 0 , (struct sockaddr *) &si_other, slen)==-1)
 		{
