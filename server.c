@@ -43,6 +43,7 @@ void blockAccount(singleList list,char username[512]);
 int checkBlocked(singleList list, char username[512]);//if blocked, return 1
 int checkCorrectPassword(singleList list, char username[512], char pass[512]);
 int strcicmp(char const *a, char const *b);
+int split_number_and_string(char *input, char *number,char *string);
 //Implement function of linked list
 void createSingleList(singleList *list)
 {
@@ -229,6 +230,29 @@ int strcicmp(char const *a, char const *b){
             return d;
 	}
 }
+int split_number_and_string(char *input, char *number,char *string){
+	// if number, copy to number
+	// if character, copy to string
+	int x = 0, y = 0;
+
+	for(int i = 0; i < strlen(input); i++){
+		if (input[i] == '\0') break;
+		if(input[i] >= '0' && input[i] <= '9'){
+    	    number[x] = input[i];
+    	   	x++;
+   		}
+   		else if ((input[i] >= 'a' && input[i] <= 'z')||(input[i] == ' ')){
+   			string[y] = input[i];
+   			y++;
+   		}
+   		else{
+   			return 0;
+   		}
+   	}
+   	number[x] = '\0'; 
+	string[y] = '\0'; 
+	return 1;
+}
 int main(void)
 {
 	FILE *fp;
@@ -239,7 +263,8 @@ int main(void)
 	struct sockaddr_in si_me, si_other;
 	
 	int s, i, slen = sizeof(si_other) , recv_len;
-	char username[BUFLEN], pass[BUFLEN], new_pass[BUFLEN], buf[BUFLEN];
+	char username[BUFLEN], pass[BUFLEN], new_pass[BUFLEN], 
+	buf[BUFLEN], number[BUFLEN], string[BUFLEN];
 	
 	//create a UDP socket
 	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -268,6 +293,8 @@ int main(void)
 		
 		//try to receive username, this is a blocking call
 		memset(username,'\0', BUFLEN);
+		memset(number,'\0', BUFLEN);
+		memset(string,'\0', BUFLEN);
 		if ((recv_len = recvfrom(s, username, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
 		{
 			die("recvfrom()");
@@ -296,15 +323,39 @@ int main(void)
 				printf("Data: %s\n" , pass);
 				if(checkCorrectPassword(list, username, pass)){//check if pass is correct? 
 					if(checkBlocked(list, username) != 1){//check if account is blocked?
-						strcpy(buf, "OK\n");
-						buf[strlen(buf) - 1] = '\0';
+						strcpy(buf, "OK\nEnter new password or 'bye' to sign out");
+						buf[strlen(buf)] = '\0';
 						if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
 							die("sendto()");
 						}
-						strcpy(buf, "Enter new password or 'bye' to sign out\n");
-						buf[strlen(buf) - 1] = '\0';
-						if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
-							die("sendto()");
+						memset(new_pass,'\0', BUFLEN);
+						if ((recv_len = recvfrom(s, new_pass, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
+						{
+							die("recvfrom()");
+						}
+						printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+						printf("Data: %s\n" , new_pass);
+						if(strcmp(new_pass, "bye") == 0){
+							strcpy(buf, "Goodbye hust");
+							buf[strlen(buf)] = '\0';
+							if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
+								die("sendto()");
+							}
+						}
+						if(split_number_and_string(new_pass, number, string)){
+							strcpy(buf, number);
+							strcat(buf, string);
+							buf[strlen(buf)] = '\0';
+							if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
+								die("sendto()");
+							}
+						}
+						else{
+							strcpy(buf, "Error");
+							buf[strlen(buf)] = '\0';
+							if(sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1){
+								die("sendto()");
+							}
 						}
 						break;
 					}
