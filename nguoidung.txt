@@ -1,2 +1,2 @@
 hust hust123 1
-soict soict123 0
+soict soict123 1

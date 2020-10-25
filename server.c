@@ -253,8 +253,7 @@ int split_number_and_string(char *input, char *number,char *string){
     	    number[x] = input[i];
     	   	x++;
    		}
-   		else if ((input[i] >= 'a' && input[i] <= 'z')||(input[i] >= 'A' && input[i] <= 'Z')
-		   ||(input[i] == ' ')){
+   		else if ((input[i] >= 'a' && input[i] <= 'z')||(input[i] >= 'A' && input[i] <= 'Z')){
    			string[y] = input[i];
    			y++;
    		}
